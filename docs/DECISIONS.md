@@ -997,3 +997,27 @@ increment for later, not required to unblock the immediate "a demo run failed" r
 locally before pushing (the one thing that IS fully checkable without another live Vercel deploy
 cycle): a fresh local run still starts and produces real LLM call rows correctly with `after()` in
 place, no regression from the previous bare-un-awaited behavior.
+
+**That fix alone wasn't enough — tested live against the real Vercel deployment, not assumed.**
+A real triggered run on `doppel-web-eight.vercel.app` after deploying the `after()` fix still failed
+— but differently: `status: "failed"` in 1.4 seconds, zero `llm_calls` rows at all. Too fast and too
+early to be the mid-run cutoff `after()` fixes; this is failing before the pipeline does any real
+work. Same root cause as the `config/pricing.json` bug from earlier today, a second instance of it:
+"Start demo run" scans `fixtures/drift-demo` via ts-morph's own filesystem glob
+(`project.addSourceFilesAtPaths`), not a static `import` — invisible to Next's file-tracing, so the
+ENTIRE fixture directory never shipped in the deployed function either. Confirmed directly by
+inspecting `.next/server/app/api/runs/route.js.nft.json` before and after fixing it, not guessed
+from the symptom alone.
+
+Extended `outputFileTracingIncludes` to the fixture — first attempt used a `**` glob from the
+fixture's root (`../../fixtures/drift-demo/**/*.ts`), which matched `node_modules/**` too since a
+recursive glob doesn't know to stop at that boundary: confirmed live, 5586 of 5639 traced files were
+from `node_modules`, and adding `outputFileTracingExcludes` for that same path did NOT remove them
+in testing (order of operations between includes/excludes isn't what a reasonable person would
+guess — not investigated further given a simpler fix existed). Fixed by enumerating the fixture's
+known subdirectories (`app/**/*.tsx`, `components/**/*.tsx`, `lib/**/*.ts`, plus the handful of root
+config files actually needed) instead of globbing from the root at all — zero `node_modules` files
+traced, confirmed the same way, 50 real fixture files instead of 5639. Verified against a true
+`next build` + `next start` (the same production artifact, not `next dev`) before pushing again:
+a real run starts, produces real `llm_calls` rows past the point that failed before, in 8 seconds
+of production-mode execution — not just "the build didn't error."
