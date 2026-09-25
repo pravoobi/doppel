@@ -1,8 +1,9 @@
 /**
- * Cost estimation from config/pricing.json. CLAUDE.md §3.1: every price in that
- * file is third-party-sourced and marked `confirmed: false` pending verification
- * against the real Nebius dashboard — see docs/DECISIONS.md. Costs computed here
- * inherit that uncertainty; the cost panel (§7, M4) must surface it, not hide it.
+ * Cost estimation from config/pricing.json. CLAUDE.md §3.1: the cost panel must
+ * not show made-up figures — every price's `confirmed` flag records whether it
+ * was actually checked against the real Nebius dashboard (tokenfactory.nebius.
+ * com/organization/prices) or just cross-referenced against third-party
+ * aggregators. See docs/DECISIONS.md for the sourcing/confirmation history.
  *
  * Lives in @doppel/shared (not @doppel/agent, where it started) because both
  * agent's JSONL usage sink and @doppel/db's Drizzle-backed one need identical
@@ -44,6 +45,20 @@ function loadPricing(): PricingFile {
 export type CostEstimate = {
   costUsd: number
   confirmed: boolean
+}
+
+/**
+ * True only when every given model has a pricing entry AND that entry is
+ * marked `confirmed: true` — lets a caller (the cost panel) derive its
+ * "these prices are unconfirmed" disclaimer from the live pricing data
+ * instead of hardcoding text that goes stale the moment someone verifies
+ * the numbers (see docs/DECISIONS.md, 2026-09-25). An unknown model counts
+ * as unconfirmed, not skipped — matches estimateCostUsd's own "never a
+ * guessed number" stance.
+ */
+export function arePricesConfirmed(modelIds: string[]): boolean {
+  const models = loadPricing().models
+  return modelIds.every((id) => models[id]?.confirmed === true)
 }
 
 /** Returns null when the model has no pricing entry at all — never a guessed number. */

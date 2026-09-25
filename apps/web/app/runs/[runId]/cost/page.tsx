@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { eq } from "drizzle-orm"
 import { getDb, runs, llmCalls, type LlmCall } from "@doppel/db"
-import { estimateCostUsd } from "@doppel/shared"
+import { estimateCostUsd, arePricesConfirmed } from "@doppel/shared"
 import { NEMOTRON_MODELS } from "@doppel/agent"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -80,6 +80,7 @@ export default async function CostPage({ params }: { params: Promise<{ runId: st
   const ultraSharePct = calls.length > 0 ? (ultraCalls / calls.length) * 100 : 0
 
   const filtered = run.stats?.filtered ?? null
+  const pricesConfirmed = arePricesConfirmed([...new Set(calls.map((c) => c.modelId))])
 
   return (
     <main className="mx-auto flex max-w-4xl flex-col gap-6 p-8">
@@ -104,11 +105,18 @@ export default async function CostPage({ params }: { params: Promise<{ runId: st
         </Card>
       ) : (
         <>
-          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-            Prices are third-party-sourced (not confirmed against the real Nebius dashboard) — see{" "}
-            <code className="rounded bg-black/5 px-1 py-0.5 font-mono dark:bg-white/10">config/pricing.json</code>.
-            Treat totals below as directional, not exact.
-          </div>
+          {pricesConfirmed ? (
+            <div className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
+              Prices confirmed against the real Nebius dashboard — see{" "}
+              <code className="rounded bg-black/5 px-1 py-0.5 font-mono dark:bg-white/10">config/pricing.json</code>.
+            </div>
+          ) : (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+              Prices are third-party-sourced (not confirmed against the real Nebius dashboard) — see{" "}
+              <code className="rounded bg-black/5 px-1 py-0.5 font-mono dark:bg-white/10">config/pricing.json</code>.
+              Treat totals below as directional, not exact.
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Stat label="Total calls" value={calls.length.toLocaleString()} />

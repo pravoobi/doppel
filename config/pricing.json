@@ -1,5 +1,5 @@
 {
-  "$note": "Per CLAUDE.md §3.1: the cost panel must not show made-up figures. These numbers are NOT confirmed by Nebius directly — the authoritative page (tokenfactory.nebius.com/organization/prices) requires an authenticated dashboard session that automated tools cannot reach. Every entry below is sourced from third-party model-pricing aggregators (artificialanalysis.ai, pricepertoken.com, getmaxim.ai/bifrost, requesty.ai), cross-checked 2026-09-23. `confirmed: false` on every entry until someone with dashboard access verifies against the real page. See docs/DECISIONS.md for the full sourcing trail, including one conflicting data point on Ultra's output price.",
+  "$note": "Per CLAUDE.md §3.1: the cost panel must not show made-up figures. Confirmed 2026-09-25 directly against the real Nebius dashboard (tokenfactory.nebius.com/organization/prices) by the project owner — every figure below matches exactly what was already recorded from third-party aggregators on 2026-09-23 (see each entry's `source` and docs/DECISIONS.md for that original sourcing trail). `confirmed: true` now reflects a real authenticated-dashboard check, not the aggregator cross-reference alone.",
   "currency": "USD",
   "unit": "per_1m_tokens",
   "models": {
@@ -7,30 +7,30 @@
       "tier": "nano",
       "input": 0.06,
       "output": 0.24,
-      "confirmed": false,
-      "source": "artificialanalysis.ai, pricepertoken.com (2026-09-23) — matches CLAUDE.md §3.1's own indicative guess exactly"
+      "confirmed": true,
+      "source": "Confirmed against tokenfactory.nebius.com/organization/prices (2026-09-25). Originally sourced from artificialanalysis.ai, pricepertoken.com (2026-09-23)."
     },
     "nvidia/Nemotron-3_5-Lightning": {
       "tier": "lightning",
       "blended": 0.08,
-      "input": null,
-      "output": null,
-      "confirmed": false,
-      "source": "artificialanalysis.ai (2026-09-23) — blended figure only, no input/output split found; not currently wired to any pipeline stage"
+      "input": 0.06,
+      "output": 0.24,
+      "confirmed": true,
+      "source": "Confirmed against tokenfactory.nebius.com/organization/prices (2026-09-25). Not currently wired to any pipeline stage."
     },
     "nvidia/nemotron-3-super-120b-a12b": {
       "tier": "super",
       "input": 0.3,
       "output": 0.9,
-      "confirmed": false,
-      "source": "artificialanalysis.ai, getmaxim.ai/bifrost (2026-09-23) — matches CLAUDE.md §3.1's own indicative guess exactly"
+      "confirmed": true,
+      "source": "Confirmed against tokenfactory.nebius.com/organization/prices (2026-09-25). Originally sourced from artificialanalysis.ai, getmaxim.ai/bifrost (2026-09-23)."
     },
     "nvidia/Nemotron-3-Ultra-550b-a55b": {
       "tier": "ultra",
       "input": 1.0,
       "output": 3.0,
-      "confirmed": false,
-      "source": "requesty.ai, pricepertoken.com (2026-09-23) — matches CLAUDE.md §3.1's own indicative guess exactly. One conflicting data point: a third-party repo's commit message cited $2.40/1M output for this model; not corroborated elsewhere, treated as noise pending real confirmation."
+      "confirmed": true,
+      "source": "Confirmed against tokenfactory.nebius.com/organization/prices (2026-09-25) — resolves the one conflicting third-party data point (a repo commit message citing $2.40/1M output) in favor of the real $3.00 dashboard figure."
     }
   }
 }

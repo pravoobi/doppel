@@ -155,7 +155,7 @@ doppel/
 ├── fixtures/
 │   └── drift-demo/  ground-truth fixture: an app with 18 planted drift cases + EXPECTED.json
 ├── config/
-│   └── pricing.json third-party-sourced Nemotron pricing, marked unconfirmed pending Nebius dashboard access
+│   └── pricing.json Nemotron pricing, confirmed 2026-09-25 against the real Nebius dashboard
 ├── docs/
 │   ├── DECISIONS.md decision log — read this for the "why" behind every non-obvious choice
 │   └── FEEDBACK.md  running Nebius/NVIDIA tooling feedback

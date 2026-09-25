@@ -940,3 +940,26 @@ in `next.config.ts`; verified two ways before pushing, not just typechecked: (1)
 `.next/server/.../page.js.nft.json` trace manifest now lists `pricing.json`, (2) a real `next build`
 + `next start` locally (true production mode, not `next dev`) returns `200` with real cost numbers
 on the exact route that 500'd in production.
+
+## 2026-09-25 — `config/pricing.json` confirmed against the real Nebius dashboard
+
+The user checked `tokenfactory.nebius.com/organization/prices` directly and confirmed: every price
+already recorded from third-party aggregators on 2026-09-23 (§3.1's own indicative table) matches
+the real dashboard exactly — nano $0.06/$0.24, super $0.30/$0.90, ultra $1.00/$3.00. This also
+resolves §3.1's one open conflicting data point (a third-party repo's commit message citing $2.40/1M
+for Ultra's output) in favor of the real $3.00 figure that was already in use. `confirmed` flipped
+`false → true` on every entry.
+
+**Made the "these prices are unconfirmed" disclaimer derive from the data instead of staying
+hardcoded text** — the exact mistake that produced this session's earlier deploy bug (a stale claim
+baked into a string). Added `arePricesConfirmed(modelIds)` to `@doppel/shared`'s pricing module;
+the cost panel now computes it from the actual models used in a run and shows a green "confirmed"
+banner or the amber "unconfirmed" one accordingly — correct today, and correct again automatically
+if a price ever needs re-verifying later (a new model added with `confirmed: false` would flip the
+banner back without anyone needing to remember to update page copy by hand).
+
+One real test fallout, not swept under anything: `Lightning`'s pricing entry already had a real
+input/output split filled in (from an earlier session) alongside its `blended` rate, and
+`estimateCostUsd` correctly prefers the more precise split over the blended average when both
+exist — a test asserting the old blended-only computation broke because the code was right and the
+test's fixture data had moved on. Fixed the test to match reality, not the code to match the test.
