@@ -106,10 +106,16 @@ export default async function RunPage({
       )}
 
       {run.status === "failed" && (
-        <p className="rounded-md border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
-          This run failed. Check the server logs for details — findings collected before the
-          failure are still shown below.
-        </p>
+        <div className="rounded-md border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
+          <p>This run failed. Findings collected before the failure are still shown below.</p>
+          {run.errorMessage ? (
+            <pre className="mt-2 overflow-x-auto whitespace-pre-wrap font-mono text-xs">{run.errorMessage}</pre>
+          ) : (
+            <p className="mt-1 text-xs text-destructive/70">
+              No error message recorded (this run predates that being captured) — check server logs.
+            </p>
+          )}
+        </div>
       )}
 
       {allFindings.length === 0 && run.status === "completed" && (

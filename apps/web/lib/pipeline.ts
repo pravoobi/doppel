@@ -278,9 +278,10 @@ export async function executeRun(run: Run, input: RunPipelineInput): Promise<voi
       .where(eq(runs.id, run.id))
   } catch (err) {
     console.error(`run ${run.id} failed:`, err)
+    const errorMessage = err instanceof Error ? `${err.name}: ${err.message}` : String(err)
     await db
       .update(runs)
-      .set({ status: "failed", finishedAt: new Date() })
+      .set({ status: "failed", finishedAt: new Date(), errorMessage: errorMessage.slice(0, 4000) })
       .where(eq(runs.id, run.id))
   } finally {
     // Reset to the default sink so a subsequent run (or any other agent call

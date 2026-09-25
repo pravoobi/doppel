@@ -15,6 +15,13 @@
       "when": 1790326663886,
       "tag": "0001_fearless_domino",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790350182535,
+      "tag": "0002_brainy_iceman",
+      "breakpoints": true
     }
   ]
 }

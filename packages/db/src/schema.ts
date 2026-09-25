@@ -41,6 +41,13 @@ export const runs = pgTable("runs", {
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   finishedAt: timestamp("finished_at", { withTimezone: true }),
   stats: jsonb("stats").$type<RunStats>(),
+  // Null unless status is "failed". Previously a run's own error was ONLY
+  // reachable via server logs (console.error in pipeline.ts's catch block) —
+  // fine locally, useless once a deployed run fails and only the platform's
+  // own dashboard has the logs. Persisting it here means a failed run is
+  // self-diagnosable from the dashboard alone (see docs/DECISIONS.md,
+  // 2026-09-25, for the real live-deploy failures that made this necessary).
+  errorMessage: text("error_message"),
 })
 
 /** §5.5's `propMapping` entries — mirrors @doppel/agent's PropMappingEntrySchema shape without depending on that package (db shouldn't need agent's runtime deps just for a type). */
