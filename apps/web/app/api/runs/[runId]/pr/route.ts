@@ -15,6 +15,14 @@ import { eq, and } from "drizzle-orm"
 import { getDb, findings } from "@doppel/db"
 import { GitHubClient, exportPassFindingsAsPr } from "@doppel/github"
 
+// This route awaits the export fully (no after()/cutoff risk like
+// /api/runs — see that route's own comment), but a run with many PASS
+// findings makes several sequential GitHub API calls (branch, per-file
+// commits, per-finding screenshots, PR) and could exceed Vercel's default
+// function duration on a slow run. Same caveat as /api/runs: raise only to
+// what your actual Vercel plan supports, or the deploy build fails.
+export const maxDuration = 60
+
 export async function POST(_request: Request, { params }: { params: Promise<{ runId: string }> }) {
   const { runId } = await params
 

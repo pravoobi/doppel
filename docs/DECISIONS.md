@@ -963,3 +963,37 @@ input/output split filled in (from an earlier session) alongside its `blended` r
 `estimateCostUsd` correctly prefers the more precise split over the blended average when both
 exist — a test asserting the old blended-only computation broke because the code was right and the
 test's fixture data had moved on. Fixed the test to match reality, not the code to match the test.
+
+## 2026-09-25 — Live demo run failed on Vercel: the documented un-awaited-background-work limitation, for real
+
+The user clicked "Start demo run" on the deployed dashboard and got `status: "failed"` almost
+immediately — no useful error surfaced, just the generic "check the server logs" message. This is
+exactly the limitation `apps/web/app/api/runs/route.ts`'s own header comment already named before
+today: `POST /api/runs` fires `executeRun(...)` without awaiting it, which works fine on a
+long-lived process (`next dev`/`next start`, this project's own local testing all session) but has
+no guarantee on Vercel, where the platform can freeze or tear down a serverless function once its
+response is sent — cutting the in-flight pipeline off mid-run, which surfaces as a real thrown
+error inside `pipeline.ts`'s own try/catch (correctly setting `status: "failed"`), not a hang.
+
+**Fixed with Next.js's own API for exactly this**, not a workaround: `after()` (from `next/server`)
+schedules work to run after the response is sent, and on Vercel it's wired to the platform's
+`waitUntil`, which keeps the function alive for that work instead of tearing it down. Replaced the
+bare `executeRun(run, input).catch(...)` with `after(() => executeRun(run, input).catch(...))`.
+Also added `export const maxDuration` to both `/api/runs` (300s — a live run's slowest part, M3
+verify, can take several minutes) and `/api/runs/[runId]/pr` (60s — properly awaited already, no
+cutoff risk, but several sequential GitHub API calls could exceed a short default). Deliberately did
+NOT guess a number near Vercel's actual platform ceiling (some evidence suggests exceeding your
+plan's real maximum fails the deploy BUILD, not just the runtime) — picked conservative values and
+said so in both files' comments, rather than asserting Vercel account-tier specifics this codebase
+has no way to actually confirm.
+
+**Still an open, honestly-stated limitation, not fully solved:** `after()` raises the ceiling, it
+doesn't remove it — a real run against a repo with many DRIFT candidates going through live M3
+verify can still exceed even a generous `maxDuration`. The correct long-term answer, unchanged from
+what `pipeline.ts` and this route already said before today, is a real background-job queue
+(CLAUDE.md §3.4's Serverless Jobs, or a Postgres-backed job table + poller) that doesn't tie pipeline
+execution to any single HTTP request's lifetime at all. Not built here — a real, well-scoped
+increment for later, not required to unblock the immediate "a demo run failed" report. Verified
+locally before pushing (the one thing that IS fully checkable without another live Vercel deploy
+cycle): a fresh local run still starts and produces real LLM call rows correctly with `after()` in
+place, no regression from the previous bare-un-awaited behavior.
