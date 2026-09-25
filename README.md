@@ -100,9 +100,15 @@ code** — `components/finding-card.tsx`'s "can't be mapped cleanly" notice and 
 pricing disclaimer are each a hand-rolled `<div>` independently reproducing `Card`'s exact styling,
 correctly classified with real adjudicator rationale. Verify correctly declined to render either
 (`apps/web` is Tailwind v4 with no `tailwind.config.ts`; the verify harness is tuned to the
-fixture's Tailwind v3 setup — a stated scope boundary, not a bug) rather than guessing. Remaining:
-push this repo to GitHub (LICENSE is already correct Apache-2.0, just not public yet), deploy the
-dashboard with a seeded demo run, record the submission video, and finish `docs/FEEDBACK.md`.
+fixture's Tailwind v3 setup — a stated scope boundary, not a bug) rather than guessing.
+
+Repo is public: [github.com/pravoobi/doppel](https://github.com/pravoobi/doppel). **Live demo:**
+[doppel-web-eight.vercel.app](https://doppel-web-eight.vercel.app/) — real pre-computed runs
+visible immediately, no API key needed. One real deploy-only bug found and fixed getting there: the
+cost panel 500'd in production because `config/pricing.json` is read via a computed `fs` path, which
+Next.js's file-tracing can't see (only static imports get traced into the deployed bundle) — fixed
+via `outputFileTracingIncludes` in `next.config.ts`, verified against a real local production build
+before pushing. Remaining for M5: the submission video and finishing `docs/FEEDBACK.md`.
 
 ## Where Nebius / NVIDIA tooling is used
 

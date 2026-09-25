@@ -27,6 +27,15 @@ const nextConfig: NextConfig = {
     "@doppel/db",
     "@doppel/github",
   ],
+  // @doppel/shared's pricing.ts reads config/pricing.json via a computed
+  // fs.readFileSync path, not a static import — Next's file-tracing (what
+  // decides which non-code files ship in a deployed serverless function)
+  // only follows import/require statements, so it never finds this file.
+  // Worked in local dev (full repo on disk) and broke silently in
+  // production (ENOENT inside the function) until traced explicitly here.
+  outputFileTracingIncludes: {
+    "/**": ["../../config/pricing.json"],
+  },
 };
 
 export default nextConfig;

@@ -914,3 +914,29 @@ config.ts` — `apps/web` is Tailwind v4 (CSS-first config, no config file at al
 already stated in that file's own header comment. Not fixed here — extending the harness to detect
 and handle a Tailwind-v4-shaped repo is real, well-scoped future work, not required for this
 milestone's gate ("whatever it finds goes in the video," not "and verify must pass too").
+
+## 2026-09-25 — M5: pushed to GitHub, deployed to Vercel, one real deploy-only bug found and fixed
+
+Repo pushed to `github.com/pravoobi/doppel` (public, Apache-2.0 correctly auto-detected by GitHub).
+User deployed `apps/web` to Vercel (`doppel-web-eight.vercel.app`), connected to the SAME Neon
+database as local dev — confirmed by checking the deployed home page and seeing the exact same real
+runs (the fixture run, the dogfood run), not a stale or separate database. §14's "working demo URL
+... at least one pre-computed run visible without requiring the judge to have an API key" is met by
+this alone — no seeding step needed since real runs already exist there.
+
+**Checked every page on the live deployment, not just the home page** — same lesson as every other
+entry in this log: a page that builds and typechecks isn't proven until someone actually loads it.
+Home page and run-detail page (including the drift map and real embedded screenshot images):
+`200`, correct content. Cost panel: **`500`**. Root cause, confirmed by inspecting the build's own
+trace manifest, not guessed: `@doppel/shared/src/pricing.ts` reads `config/pricing.json` via
+`fs.readFileSync` at a path computed from `import.meta.url` — a real file read, not a static
+`import`/`require`. Next.js's file-tracing (what decides which non-code files a deployed serverless
+function actually ships with) only follows static import statements; it has no way to see a
+runtime-computed `fs` path, so `config/pricing.json` silently never made it into the cost page's
+deployed bundle. Worked everywhere in local dev (the whole repo is on disk there) and broke only in
+the one environment that ships a pruned file set — exactly the kind of bug that's invisible until
+you actually deploy. Fixed with `outputFileTracingIncludes: { "/**": ["../../config/pricing.json"] }`
+in `next.config.ts`; verified two ways before pushing, not just typechecked: (1) the cost page's own
+`.next/server/.../page.js.nft.json` trace manifest now lists `pricing.json`, (2) a real `next build`
++ `next start` locally (true production mode, not `next dev`) returns `200` with real cost numbers
+on the exact route that 500'd in production.
