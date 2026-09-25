@@ -1021,3 +1021,21 @@ traced, confirmed the same way, 50 real fixture files instead of 5639. Verified 
 `next build` + `next start` (the same production artifact, not `next dev`) before pushing again:
 a real run starts, produces real `llm_calls` rows past the point that failed before, in 8 seconds
 of production-mode execution — not just "the build didn't error."
+
+**A THIRD live test after that fix still failed — and this time the fix showed its value
+immediately.** Added `runs.error_message` (previous commit) specifically because diagnosing the
+two bugs above without one meant guessing from the symptom (status + timing) rather than seeing the
+real thrown error. It paid off on the very next failure: `ENOENT ... /var/task/packages/agent/
+prompts/triage.md` — no guesswork, no re-deriving from timing, the dashboard just showed it.
+Identical root cause to the fixture bug, a third instance of the same class: `@doppel/agent`'s
+`prompts.ts` loads `packages/agent/prompts/*.md` via `fs.readFileSync` at runtime, exactly as
+CLAUDE.md §15 requires ("loaded at runtime, never inlined in code") — correct code, invisible to
+Next's file-tracing regardless. Before fixing blind a fourth time, grepped the whole repo for every
+runtime `readFileSync`/`readFile` call to check for more instances in one pass instead of finding
+them one deploy at a time: two more matches, both irrelevant to this bug —
+`packages/db/scripts/apply-migration.mjs` (a standalone CLI script, never imported by `apps/web`)
+and `packages/verifier/src/shoot.ts` (its `fs.readFile` call lives inside a STRING that
+`generateShootScript` returns — code that runs later inside a sandbox, not in this Node process at
+all). Added `packages/agent/prompts/*.md` to `outputFileTracingIncludes` alongside the existing
+entries; confirmed in the trace manifest (6 files, all six real prompts) and against a fourth real
+`next build` + `next start` before pushing — a run now gets past both previously-failing points.

@@ -46,10 +46,21 @@ const nextConfig: NextConfig = {
   //      node_modules), and `outputFileTracingExcludes` did NOT override
   //      it in testing. Enumerating known subdirectories instead of
   //      globbing from the root avoids ever touching node_modules at all,
-  //      no exclude rule needed.
+  //      no exclude rule needed. The same fixture list also covers what
+  //      lib/verify-run.ts's harness assembly needs (lib/utils.ts,
+  //      tailwind/postcss configs, app/globals.css, components/** —
+  //      already enumerated below for the scan step).
+  //   3. @doppel/agent's prompts.ts loads packages/agent/prompts/*.md the
+  //      same way — CLAUDE.md §15 requires this ("loaded at runtime, never
+  //      inlined in code"), so the fix has to be tracing, not changing the
+  //      loading strategy. Found via the SAME class of bug as #1/#2, this
+  //      time with a real captured error message (see runs.error_message,
+  //      added specifically because diagnosing #1/#2 without one was slow):
+  //      `ENOENT ... /var/task/packages/agent/prompts/triage.md`.
   outputFileTracingIncludes: {
     "/**": [
       "../../config/pricing.json",
+      "../../packages/agent/prompts/*.md",
       "../../fixtures/drift-demo/app/**/*.tsx",
       "../../fixtures/drift-demo/app/**/*.css",
       "../../fixtures/drift-demo/components/**/*.tsx",
