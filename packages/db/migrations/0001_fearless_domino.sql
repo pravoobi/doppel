@@ -1,0 +1,1 @@
+ALTER TABLE "findings" ADD COLUMN "imports_to_add" jsonb;

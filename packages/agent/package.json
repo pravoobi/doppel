@@ -1,0 +1,25 @@
+{
+  "name": "@doppel/agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "All model interaction. Every LLM call goes through route.ts — no exceptions.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@doppel/shared": "workspace:*",
+    "openai": "^4.104.0",
+    "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.23.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

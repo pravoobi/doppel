@@ -1,0 +1,21 @@
+{
+  "name": "@doppel/github",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PR export (CLAUDE.md §9): apply PASS findings as real file edits on a branch, open a PR with before/after images and the verdict table. No octokit — plain fetch against the REST API, matching this repo's Sandboxes client style.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@doppel/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

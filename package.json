@@ -1,0 +1,31 @@
+{
+  "name": "doppel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Design-system drift agent — find hand-rolled re-implementations of design-system components, migrate them, and prove the migration is safe by rendering it.",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter=./packages/* build",
+    "test": "pnpm -r --filter=./packages/* test",
+    "typecheck": "pnpm -r --filter=./packages/* typecheck",
+    "lint": "pnpm -r --filter=./packages/* lint",
+    "scan": "pnpm --filter @doppel/scanner cli",
+    "spike": "tsx --env-file=.env scripts/spike.ts",
+    "m2-pipeline": "tsx --env-file=.env scripts/m2-pipeline.ts",
+    "m3-pipeline": "tsx --env-file=.env scripts/m3-pipeline.ts"
+  },
+  "devDependencies": {
+    "@doppel/agent": "workspace:*",
+    "@doppel/scanner": "workspace:*",
+    "@doppel/shared": "workspace:*",
+    "@doppel/verifier": "workspace:*",
+    "@types/node": "^22.0.0",
+    "openai": "^4.0.0",
+    "ts-morph": "^23.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
