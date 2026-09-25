@@ -179,3 +179,32 @@ anything using ES module scripts." Cheap to state, saves real time.
 **Evidence.** `docs/DECISIONS.md` under "M3 gate cleared" (2026-09-23), bug #3; fix in
 `packages/verifier/src/shoot.ts`'s generated script, which now starts a minimal `http`/`fs`-based
 static server on an ephemeral port instead of using a `file://` URL.
+
+## 2026-09-23 — Sandboxes' available base images don't match a new integrator's first guess
+
+**What happened.** Building the verification pipeline's warm base image, the natural first choice
+was `tag:node:22-slim` — Node 22 is the current LTS at time of writing, and it's what this project's
+own `engines` field requires everywhere else. Spawning against it failed outright: it's not in this
+account's pre-registered image catalog. `GET /v1/images` (found by checking the API reference for
+an images-listing endpoint, not documented as a first step anywhere in the Sandboxes quickstart)
+shows the real available set — `node:20-slim` is on it, `node:22-slim` isn't. Switching tags fixed
+it immediately; Node 20 is fine for everything this project needs. Cost was low here (one fast `404`
+caught by checking the catalog live before spawning again, not by guessing a second time) — but
+that's a discipline this team adopted after getting burned by guessing elsewhere in this same
+project, not something the Sandboxes onboarding flow itself prompts you toward.
+
+**Why this matters.** The Sandboxes quickstart's own example uses `ubuntu:latest`, which doesn't
+tell an integrator anything about what's available for other common base images. Node's LTS
+cadence means "the current LTS tag" is a moving target, so whatever's pre-registered today will
+eventually be stale again for whoever reads the docs next. Nothing in the onboarding flow points at
+`GET /v1/images` as the step to run before picking a tag — we found it by exploring the API
+reference for something adjacent, not because it was called out as necessary.
+
+**What would help.** One sentence in the Sandboxes quickstart: "see `GET /v1/images` for the base
+images available to your account — not every public Docker Hub tag is pre-registered." Cheap to
+state, and it would have saved the one wasted spawn attempt (small on its own, but this is exactly
+the kind of thing that compounds when an image catalog changes account-to-account or over time).
+
+**Evidence.** `docs/DECISIONS.md` under "M3 gate cleared" (2026-09-23), bug #1; the confirmed
+working tag lives in `scripts/m3-pipeline.ts` and `apps/web/lib/verify-run.ts`'s `BASE_IMAGE`
+constant, each with a comment explaining why `node:20-slim` was chosen over the more obvious guess.
