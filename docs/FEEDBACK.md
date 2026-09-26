@@ -8,6 +8,63 @@ Format per entry: what we hit, when, what we expected, what would have helped.
 
 ---
 
+## Overview — what we used, how onboarding felt, and whether we'd build with it again
+
+**What we used it for.** Doppel is a design-system drift detector: it scans a React/Tailwind
+codebase for hand-rolled components that duplicate a shadcn/ui design system, then uses a
+three-tier Nemotron pipeline (Nano → Super → Ultra, all through **Nebius Token Factory**'s
+OpenAI-compatible chat completions API) to triage, adjudicate, and migrate each one — and then
+proves the migration is safe by actually rendering before/after in a **Token Factory Sandbox**,
+screenshotting both, and pixel-diffing them. We did not use Nebius AI Cloud separately; Token
+Factory covered both the inference and the verification-sandbox needs end to end, so everything
+below is specific to Token Factory + Sandboxes, not a broader Nebius platform opinion.
+
+**Onboarding, zero to hello world.** Faster than expected on the inference side, slower on the
+Sandboxes side. `GET /v1/models` plus the OpenAI SDK with `baseURL` overridden got us a real chat
+completion from all four Nemotron tiers within the same day the API key arrived — the
+OpenAI-compatible shape meant zero bespoke HTTP client, which is exactly the point of that
+compatibility and it paid off immediately. Sandboxes took longer, for two reasons that were both
+about missing signposting rather than the API itself: (1) the auth docs read like they wanted a
+separate IAM token exchange before a key detail — the answer is your existing Token Factory API
+key works directly — and (2) our account's Sandboxes permissions (`spawn`/`import`/`list`/etc.)
+all came back `false` from `/whoami` with no indication anywhere in the flow that a *separate*
+enablement step from inference access was needed, or where to go get it. Once that was resolved
+(a one-time console step), everything from spawn to fork-per-verification worked reliably.
+
+**What worked well.** The OpenAI-compatible inference API is the standout — it let us build the
+entire model-routing layer (`packages/agent/src/route.ts`) against the plain `openai` npm package
+with no adapter code at all. `GET /v1/models` as the source of truth for exact model IDs meant we
+never had to guess or hardcode a name we couldn't verify. Sandboxes' outbound network access
+being real (confirmed via `apt-get`/`curl` to an external host from inside a live sandbox) removed
+what would have been a major architecture fork — we could `pnpm install` at verify time instead
+of baking every dependency into a custom OCI image. And the Sandboxes REST API worked directly
+from plain Node `fetch` with no SDK dependency at all, once we knew spawning was async
+(`POST /instances` returns immediately, the real result shows up later via
+`GET /operations/{uuid}` — a polling relationship the fetchable docs don't state, found
+empirically, logged separately below).
+
+**What needs work.** See the dated entries below for specifics, but the shared theme across most
+of them is *silent, undocumented behavior changes based on payload shape or account state* rather
+than outright bugs: reasoning models returning `null` content with no signal it was a token-budget
+problem, not a quality one; sandbox stdout silently switching encoding from `ascii` to `base64`
+above some undocumented size; `strict: true` guaranteeing JSON shape but not string-field
+completeness. None of these were hard blockers once found, but all of them cost real, avoidable
+debugging time because nothing in the response or the docs flagged that the behavior had changed.
+
+**Would we build with it again, and why.** Yes. The three-tier pricing spread is the reason: a
+real end-to-end run on our fixture cost **$0.13** actually spent, with Nano/Super handling triage
+and adjudication and Ultra reserved for migration and repair — versus a measured **$0.27** if the
+same run had been routed entirely to Ultra, a **50.6% saving that we measured, not asserted**
+(`/runs/[runId]/cost` in the shipped app computes this live from logged token counts, it isn't a
+hardcoded claim). That tiering is only viable because the API is OpenAI-compatible enough to make
+routing trivial to implement, and Sandboxes made "verified, not guessed" migrations possible at
+all — a render-and-diff loop with real deltaRatios (1.06% / 0.52% / 0.28% on the migrations we
+shipped) is not something a token-metering-only platform could have given us. The rough edges
+above are all things a few sentences of documentation would fix, not architectural problems with
+the platform itself.
+
+---
+
 ## 2026-09-23 — Reasoning models return `null` content with no signal that it's a budget problem
 
 **What happened.** Ran a 20-token-budget chat completion against all four available Nemotron
