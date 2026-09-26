@@ -34,6 +34,16 @@ export type RunPipelineInput = {
   ref?: string
   /** Relative to repoRoot, e.g. "components/ui". Matches CLAUDE.md §5.1's detection order — explicit path first. */
   dsPath: string
+  /**
+   * Testing/diagnostic knob only — not exposed in the UI. Stops after
+   * adjudicating/migrating/verifying this many triaged candidates instead of
+   * all of them. The verify loop below is a serial `for` (no concurrency yet,
+   * despite CLAUDE.md §3.3's intent), so wall time scales ~linearly with
+   * candidate count; this exists to check whether a SMALL run fits inside
+   * Vercel's `maxDuration` without waiting on a real background-job queue.
+   * Undefined (the default) processes every candidate, unchanged from before.
+   */
+  maxCandidates?: number
 }
 
 /**
@@ -149,7 +159,10 @@ export async function executeRun(run: Run, input: RunPipelineInput): Promise<voi
 
     let drifts = 0
 
-    for (const triage of triageResults) {
+    const candidatesToProcess =
+      input.maxCandidates != null ? triageResults.slice(0, input.maxCandidates) : triageResults
+
+    for (const triage of candidatesToProcess) {
       if (!triage.match) continue
       const candidate = candidatesById.get(triage.id)
       const matchedComponent = componentsByName.get(triage.match)

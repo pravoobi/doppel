@@ -56,6 +56,7 @@ export async function POST(request: Request) {
     repoUrl: body.repoUrl ?? "fixtures/drift-demo",
     ref: body.ref,
     dsPath: body.dsPath ?? "components/ui",
+    maxCandidates: body.maxCandidates,
   }
 
   let run
