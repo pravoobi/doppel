@@ -1039,3 +1039,44 @@ and `packages/verifier/src/shoot.ts` (its `fs.readFile` call lives inside a STRI
 all). Added `packages/agent/prompts/*.md` to `outputFileTracingIncludes` alongside the existing
 entries; confirmed in the trace manifest (6 files, all six real prompts) and against a fourth real
 `next build` + `next start` before pushing — a run now gets past both previously-failing points.
+
+**That live test run also revealed a genuinely bigger, previously undetected problem, found by
+accident:** after 8 real findings (a live run finally working end to end past both file-tracing
+bugs), the run stalled at exactly 38 `llm_calls` and 8 findings for several minutes straight, no
+further progress — consistent with hitting `maxDuration`'s 300s ceiling, a hard platform kill that
+never reaches `pipeline.ts`'s own `try/catch`, leaving the row stuck at `status: "running"` forever
+instead of `"failed"`. Still an open, honestly-stated limitation from the `after()` entry above —
+`after()` raises the ceiling, a real background-job queue is the actual fix for a pipeline that can
+outlast any single request. Not solved today; noted here as confirmed, not just theorized.
+
+**Separately, cleaned up the run history** — 13 runs had accumulated on the shared Neon database
+(local dev and the Vercel deployment both point at it), 11 of them this session's own debugging
+artifacts (failed attempts from before each fix, local test runs left stuck at "running" when their
+dev server was killed, an earlier dogfood attempt that resolved to zero files before the Windows-path
+fix). Deleted all 11, keeping exactly two real, meaningful runs: the richest fixture demo (18
+findings, real `PASS`/`REVIEW`/`FAIL`/`UNVERIFIABLE` verdicts) and the real dogfood run (2 real
+`DRIFT` findings in this project's own dashboard code) — a clean history for a repo judges will
+actually look at, not a debugging trail.
+
+**Then found a second, more consequential production-only bug while verifying the cleanup landed:**
+the home page kept showing the deleted runs after a cache-busted re-fetch. `curl -I` showed why:
+`X-Vercel-Cache: HIT`, `Age: 40274` (~11 hours) — Vercel's edge CDN had been caching the home page
+since close to its first deploy, despite it doing a live `db.select()` on every intended request.
+Confirmed by checking the build output directly: `/` had been listed as `○` (static, prerendered at
+build time) in every build this whole session, not `ƒ` (dynamic) — Next's default heuristic treats
+a page with no explicit dynamic API usage (no `cookies()`/`headers()`, and `page.tsx` itself reads
+neither) as safe to fully prerender, which is exactly wrong for a page whose only job is showing
+current run state. **This means the home page's run list had likely been frozen since the very
+first production deploy** — every run ever started would have been invisible there in production,
+regardless of the run itself working correctly (confirmed separately, e.g. the cost-panel and
+fixture-tracing fixes each worked once actually exercised). The run-detail page's whole
+`<AutoRefresh>` mechanism was suspect for the same reason: if Vercel's CDN caches the RESPONSE
+regardless of Next's own render-time behavior, `router.refresh()` polling every few seconds would
+just be re-fetching the same frozen HTML, not real progress — that page uses `searchParams`, which
+nudges Next toward dynamic rendering on its own, but nothing here should rely on an inferred
+behavior holding across every caching layer when a two-line explicit opt-out exists. Added
+`export const dynamic = "force-dynamic"` to all three data-driven pages (`/`, `/runs/[runId]`,
+`/runs/[runId]/cost`) rather than depending on Next.js to correctly infer "this needs to be live"
+from the absence of certain API calls. Confirmed via a real `next build`: `/` now lists as `ƒ`, not
+`○`. The actual CDN-cache-clearing effect on Vercel itself still needs live verification after this
+deploys — noted as the next thing to check, not assumed fixed from the build output alone.

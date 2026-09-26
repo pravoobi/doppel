@@ -8,6 +8,16 @@ import { AutoRefresh } from "@/components/auto-refresh"
 import { DriftMap } from "@/components/drift-map"
 import { OpenPrButton } from "@/components/open-pr-button"
 
+// See app/page.tsx's identical directive for why — confirmed live, Vercel's
+// edge CDN can cache a page for hours despite a live DB read, and this
+// page's whole `<AutoRefresh>` mechanism (client-side router.refresh() every
+// few seconds) is worthless against a cached response: it would just
+// re-fetch the same stale HTML repeatedly instead of ever seeing a run's
+// real progress. This page also reads `searchParams`, which nudges Next
+// toward dynamic rendering on its own — force-dynamic makes it explicit
+// instead of relying on that inference holding at every caching layer.
+export const dynamic = "force-dynamic"
+
 // CLAUDE.md §9: "Verdict filters across the top, with counts. Default to PASS;
 // make REVIEW one click." A finding's bucket is its verdict when it has one
 // (DRIFT candidates that reached verify); otherwise its classification

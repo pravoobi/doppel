@@ -5,6 +5,15 @@ import { Card, CardContent } from "@/components/ui/card"
 import { RunStatusBadge } from "@/components/run-status-badge"
 import { StartRunButton } from "@/components/start-run-button"
 
+// Confirmed live (2026-09-26): without this, Vercel's edge CDN cached this
+// page for hours (X-Vercel-Cache: HIT, Age: 40274) despite it doing a live
+// DB read on every request — Next's default caching heuristics treat a page
+// with no explicit dynamic API usage as cacheable, and this one has none
+// (no cookies/headers/searchParams). That's silently wrong for a page whose
+// entire point is showing current run status; force-dynamic opts out of
+// caching at every layer instead of relying on inferred behavior.
+export const dynamic = "force-dynamic"
+
 function formatRelativeTime(date: Date): string {
   const seconds = Math.round((Date.now() - date.getTime()) / 1000)
   if (seconds < 60) return "just now"

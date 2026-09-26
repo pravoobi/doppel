@@ -7,6 +7,11 @@ import { NEMOTRON_MODELS } from "@doppel/agent"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
+// See app/page.tsx's identical directive for why — a page doing a live DB
+// read needs this stated explicitly, not inferred, or Vercel's edge CDN can
+// cache it for hours.
+export const dynamic = "force-dynamic"
+
 const TIER_ORDER = ["nano", "super", "ultra"] as const
 
 function fmtUsd(n: number): string {
