@@ -9,6 +9,20 @@ const RISK_STYLES: Record<string, string> = {
   high: "text-red-700 dark:text-red-400",
 }
 
+/**
+ * `verifyLog` (lib/pipeline.ts's `verifyResultToFindingFields`) always puts
+ * the human-readable reason first — either `verdict: X\nerror: ...` or, for a
+ * typecheck failure, `typecheck failed:\n<messages>` — before a 50KB sandbox
+ * setup/render log dump meant for debugging, not display. Cutting at that
+ * marker is what keeps this a one-line explanation instead of a log viewer.
+ */
+function explanationFor(verifyLog: string | null): string | null {
+  if (!verifyLog) return null
+  const cut = verifyLog.search(/\n--- (setup|wrapper checked) ---/)
+  const summary = (cut === -1 ? verifyLog : verifyLog.slice(0, cut)).trim()
+  return summary.length > 0 ? summary : null
+}
+
 function SourceBlock({ label, code }: { label: string; code: string }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -42,6 +56,22 @@ export function FindingCard({ finding }: { finding: Finding }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {finding.rationale && <p className="text-sm text-muted-foreground">{finding.rationale}</p>}
+
+        {(finding.verdict === "FAIL" || finding.verdict === "UNVERIFIABLE") &&
+          explanationFor(finding.verifyLog) && (
+            <div
+              className={`rounded-md border p-3 text-xs ${
+                finding.verdict === "UNVERIFIABLE"
+                  ? "border-muted-foreground/30 bg-muted/40 text-muted-foreground"
+                  : "border-destructive/50 bg-destructive/5 text-destructive"
+              }`}
+            >
+              <p className="mb-1 font-medium">
+                {finding.verdict === "UNVERIFIABLE" ? "Couldn't verify this:" : "Why this failed:"}
+              </p>
+              <pre className="whitespace-pre-wrap font-mono">{explanationFor(finding.verifyLog)}</pre>
+            </div>
+          )}
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <SourceBlock label="Original" code={finding.originalSource} />
