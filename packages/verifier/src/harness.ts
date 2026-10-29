@@ -92,23 +92,44 @@ if (!root) {
   throw new Error("harness: #root element missing from index.html")
 }
 
+function reportRenderError(err) {
+  // React 18/19's createRoot reports an uncaught render-phase error (e.g. a
+  // ReferenceError from JSX referencing an out-of-scope identifier, the
+  // common case for a candidate extracted from its enclosing component) via
+  // onUncaughtError/onCaughtError, NOT by throwing back out of .render() —
+  // a try/catch around .render() alone never sees it, the root silently
+  // unmounts to nothing, and the ready flag below would fire on a blank
+  // page. Setting the error attribute here is what makes that failure
+  // observable instead of a false "rendered fine, 0% diff."
+  document.body.dataset.${HARNESS_ERROR_ATTR} = err instanceof Error ? err.message : String(err)
+}
+
 try {
-  ReactDOM.createRoot(root).render(
+  ReactDOM.createRoot(root, {
+    onUncaughtError: (error) => reportRenderError(error),
+    onCaughtError: (error) => reportRenderError(error),
+  }).render(
     <React.StrictMode>
     ${openTags}
     <TargetComponent {...props} />
     ${closeTags}
     </React.StrictMode>
   )
-  // A microtask delay lets React commit before we signal readiness — Playwright
-  // polls this attribute instead of a fixed sleep.
+  // A microtask delay lets React commit (and onUncaughtError/onCaughtError
+  // run, synchronously within the initial mount) before we signal readiness
+  // — Playwright polls this attribute instead of a fixed sleep. Guarded so a
+  // render error doesn't also flip ready to true alongside error.
   queueMicrotask(() => {
-    document.body.dataset.${HARNESS_READY_ATTR} = "true"
+    if (!document.body.dataset.${HARNESS_ERROR_ATTR}) {
+      document.body.dataset.${HARNESS_READY_ATTR} = "true"
+    }
   })
 } catch (err) {
   // "If it still won't mount → verdict UNVERIFIABLE, stop here, do not guess."
-  // (§5.7 step 1). This is the signal that decision is based on.
-  document.body.dataset.${HARNESS_ERROR_ATTR} = err instanceof Error ? err.message : String(err)
+  // (§5.7 step 1). This is the signal that decision is based on. Catches
+  // errors outside React's own render phase (e.g. a provider throwing
+  // during setup) that onUncaughtError/onCaughtError don't cover.
+  reportRenderError(err)
 }
 `
 
