@@ -29,8 +29,11 @@ single router (`route.ts`, CLAUDE.md §0.4) with zod-validated structured output
 and per-call usage logging. Proven end-to-end against the fixture in `scripts/m2-pipeline.ts` —
 real Nemotron calls, real ts-morph patch application, real `tsc --noEmit` diagnostics:
 
-- **15/15 DRIFT-classified candidates passed typecheck** on the fixture (gate target: ≥10, per
-  CLAUDE.md §10) — zero repairs needed
+- **15/15 DRIFT-classified candidates passed typecheck** in an isolated single-candidate test
+  (`scripts/m2-pipeline.ts`, gate target: ≥10, per CLAUDE.md §10) — zero repairs needed. The full
+  orchestrated pipeline's rate on a complete run is lower (3/14 typecheck-clean as of 2026-10-29)
+  once two real, documented gaps are counted — see the M4 paragraph below and `docs/DECISIONS.md`
+  for the honest accounting, not the better-looking isolated-test figure
 - 18/18 candidates survived triage; classification against `EXPECTED.json` was correct across all
   traps (marketing hero → `INTENTIONAL_DEVIATION`, layout wrapper → `NOT_DRIFT`)
 - Getting here took real debugging, documented in full in `docs/DECISIONS.md`: a ts-morph API
@@ -42,13 +45,15 @@ real Nemotron calls, real ts-morph patch application, real `tsc --noEmit` diagno
 **M3 complete.** `packages/verifier` implements the full harness → sandbox → shoot → diff → verdict
 loop and it's been proven live, end-to-end, against a real M2 migration (`scripts/m3-pipeline.ts`):
 
-- **A real, honest `REVIEW` verdict with 9 real PNG artifacts** (before/after/diff × 3 viewports)
-  for the "Export CSV" button migration — deltaRatios of 1.06% / 0.52% / 0.28%, all correctly in
-  the REVIEW band (gate target per CLAUDE.md §10: any real verdict with image artifacts)
-- The verdict is *right*, not just present: the hand-rolled button used hardcoded `bg-blue-600`;
-  the migrated `<Button>` correctly uses the design system's default variant — a real color
-  difference a human should see, not a bug. This is CLAUDE.md §2.1's four-verdict design working
-  as intended, proven against a real migration instead of asserted in the abstract.
+- **A real, honest `REVIEW` verdict with real PNG artifacts** (before/after/diff) for a hand-rolled
+  payment-failed alert banner on the billing page, migrated to the real `Alert` component —
+  deltaRatio 0.71%, correctly in the REVIEW band (gate target per CLAUDE.md §10: any real verdict
+  with image artifacts)
+- The verdict is *right*, not just present: the hand-rolled banner hardcodes `border-red-300`,
+  `bg-red-50`, `text-red-900`; the migrated `<Alert variant='destructive'>` correctly uses the
+  design system's own red tokens instead — a real, visible difference, surfaced explicitly in the
+  finding's `unmappable` list, not a bug. This is CLAUDE.md §2.1's four-verdict design working as
+  intended, proven against a real migration instead of asserted in the abstract.
 - §3.3's "fork per patch from a warm base" is implemented literally: setup (npm install +
   Playwright/Chromium) runs once, then the same checkpoint forks twice — once per variant — using
   sandbox image-chaining confirmed live and unit-tested
@@ -72,15 +77,22 @@ states — verified against a real Neon Postgres database and a real browser, no
 Verify (M3) is now wired into the live orchestrator: it builds **one** warm sandbox image per run
 (dependencies installed once, per CLAUDE.md §3.3's "fork per patch from a warm base") and every
 DRIFT candidate forks it for a real render, pixel-diff, and an in-memory `tsc` typecheck. Proven
-live end to end against the real fixture: 18 candidates → 15 real migrations → all 15 through live
+live end to end against the real fixture: 18 candidates → 14 real migrations → all 14 through live
 verify, landing real, differentiated `PASS`/`REVIEW`/`FAIL`/`UNVERIFIABLE` verdicts with real
 before/after/diff screenshots (stored as inline `data:` URLs — no blob storage exists yet, and none
-was needed). Scope cut, stated plainly in the code: isolation renders each candidate's own extracted
-JSX standalone, not its whole containing page, so a candidate referencing its enclosing scope (a
-local handler, mapped list item, component state) can't compile standalone — this surfaces
-honestly today as `FAIL` (or `UNVERIFIABLE` when it can't render at all), not a silent guess. See
-`docs/DECISIONS.md`'s 2026-09-24 entries for the full account, including two real sandbox-command
-bugs found and fixed via a live smoke test before trusting this in a full run.
+was needed). A full run on 2026-10-29 landed **2 `PASS`, 1 `REVIEW`, 4 `FAIL`, 7
+`UNVERIFIABLE`** — the honest current number, not the better-looking isolated-test figure cited
+above. Scope cut, stated plainly in the code: isolation renders each candidate's own extracted JSX
+standalone, not its whole containing page, so a candidate referencing its enclosing scope (a
+`.map()` variable, local state) can't mount standalone and correctly comes back `UNVERIFIABLE` —
+fixed 2026-10-29 to actually report that verdict instead of a misleading `FAIL` with a fabricated
+0% pixel delta (React 18/19's `createRoot` reports a render-phase error asynchronously via
+`onUncaughtError`, not by throwing back out of `.render()`, so the harness's own `try/catch` never
+saw it). The remaining `FAIL`s are real, actionable migration bugs, not harness bugs: Ultra's
+migration sometimes omits importing the DS component it just wrote JSX for — a known, not-yet-fixed
+gap, logged honestly rather than hidden. See `docs/DECISIONS.md`'s 2026-09-24 and 2026-10-29
+entries for the full account, including two real sandbox-command bugs found and fixed via a live
+smoke test before trusting this in a full run.
 
 §9's last piece, PR export (`@doppel/github`), is built, unit-tested (32 tests, mocked GitHub API —
 plain `fetch`, no octokit), and **proven against a real GitHub repo**: `POST /api/runs/[runId]/pr`

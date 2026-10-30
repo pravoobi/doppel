@@ -1080,3 +1080,46 @@ behavior holding across every caching layer when a two-line explicit opt-out exi
 from the absence of certain API calls. Confirmed via a real `next build`: `/` now lists as `ƒ`, not
 `○`. The actual CDN-cache-clearing effect on Vercel itself still needs live verification after this
 deploys — noted as the next thing to check, not assumed fixed from the build output alone.
+
+## 2026-10-29 — Verify harness silently reported FAIL+0%-delta instead of UNVERIFIABLE; fixed, and the real typecheck pass rate measured honestly
+
+**What happened.** A user-reported screenshot showed a finding (`Badge`) with verdict `FAIL`,
+`deltaRatio: 0`, and three blank before/after/diff thumbnails — looking like "rendered fine, no
+visible difference" when nothing had actually rendered. Root cause: `packages/verifier/src/
+harness.ts`'s generated mount code wraps `ReactDOM.createRoot(root).render(...)` in a `try/catch`
+to satisfy CLAUDE.md §5.7 step 1 ("if it still won't mount → UNVERIFIABLE, stop here, do not
+guess"). React 18/19's `createRoot` does not throw render-phase errors (e.g. a `ReferenceError`
+from JSX referencing a `.map()` loop variable, local state, or an unimported component) back out
+of `.render()` synchronously — it reports them asynchronously via `onUncaughtError`/`onCaughtError`
+instead, a deliberate React 18 concurrent-rendering change. The `try/catch` never saw these errors,
+the readiness flag fired on a silently-unmounted blank root, and `verify.ts`'s `renderable` check
+(which only looks at whether the harness signaled ready/error) incorrectly reported `renderable:
+true` on a page with no actual content.
+
+**Fix.** Wired `onUncaughtError`/`onCaughtError` into `createRoot`'s options (React 19 supports
+both), setting the same `doppelError` dataset attribute the `try/catch` path already used — no
+downstream verdict logic needed to change. All 68 `packages/verifier` tests still pass.
+
+**What this changed on a real full run (2026-10-29, run `2750c2b2...`):** 14 DRIFT candidates, verdict
+breakdown now `PASS: 2, REVIEW: 1, FAIL: 4, UNVERIFIABLE: 7` — before this fix, every one of those 7
+`UNVERIFIABLE` cases would have shown as `FAIL` with a fabricated `0%` pixel delta instead.
+
+**Separately, measured honestly while verifying this:** the real typecheck pass rate on this full
+run is **3/14 (21%)**, not the `15/15` figure `README.md`/`CLAUDE.md` cite from the M2 gate — that
+number was real when measured, but came from an isolated single-candidate test
+(`scripts/m2-pipeline.ts`), not the full orchestrated pipeline. Two real, distinct gaps account for
+the difference: (1) candidates whose JSX depends on their enclosing component's scope can't
+typecheck standalone — this is the same limitation the harness fix above now correctly reports as
+`UNVERIFIABLE` rather than papering over as `FAIL`; (2) a separate, still-open bug where Ultra's
+migration sometimes omits importing the DS component it just wrote JSX for (seen on the Button
+finding at `app/page.tsx:28` — `<Button>` used with no import, `FAIL` with `deltaRatio: null` since
+only the patched variant fails to render). README and `docs/VIDEO_SCRIPT.md` updated to state the
+real current numbers rather than the better-looking isolated-test figure, per this project's own
+stated standard: "a defensible 84% reads as engineering maturity; an undefended 'highly accurate'
+reads as a hackathon demo" (CLAUDE.md §11.5).
+
+**Also fixed:** `apps/web/components/finding-card.tsx` never rendered `verifyLog`/`errorMessage` for
+non-PASS/REVIEW verdicts at all — a `FAIL` or `UNVERIFIABLE` card showed its badge with no reason
+why. Added a small callout showing the first line of `verifyLog` (the human-readable summary
+`lib/pipeline.ts` already puts ahead of the full sandbox debug log) for `FAIL`/`UNVERIFIABLE`
+findings only.
